@@ -145,7 +145,6 @@ jobs:
       with:
         fail_ci_if_error: true
         token: ${{ secrets.CODECOV_TOKEN }}
-        version: v9.0.4
     - name: Run minitest tests
       env:
         HOSTNAME: rails
