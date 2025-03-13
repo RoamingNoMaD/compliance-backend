@@ -10,7 +10,7 @@ class ApplicationConsumer < Karafka::BaseConsumer
 
       consume_one
 
-      logger.info "Received message, enqueueing: #{@message}"
+      logger.info "Received message: #{@message}"
 
       mark_as_consumed(message)
     end
