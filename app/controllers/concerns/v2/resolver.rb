@@ -41,11 +41,17 @@ module V2
     # Self-join with the requested aggregations built using 1:n associations, also select
     # the aggregated/evaluated/aliased fields from the self-joined subquery.
     def join_aggregated(relation)
-      aggregations.reduce(relation) do |scope, (association, fields)|
+      asd = aggregations.reduce(relation) do |scope, (association, fields)|
         # Evaluate and alias all `fields` tied to a single `association` at once
         aliases = fields.map { |aggregation, column| aggregation.call.as(column) }
         scope.joins(subquery_fragment(association, aliases)).select(fields.map(&:second))
       end
+
+      aggregations.reduce(relation) do |scope, (association, fields)|
+        binding.pry
+      end
+
+      asd
     end
 
     # Builds a subquery with the `resource` left outer joined with the `association`, grouped

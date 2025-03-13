@@ -1,18 +1,17 @@
 # frozen_string_literal: true
 
-# Receives messages from the Kafka topic, converts them into jobs
-# for processing
+# Receives messages from the Kafka topic, converts them into jobs for processing
 class InventoryEventsConsumer < ApplicationConsumer
-  subscribes_to Settings.kafka.topics.inventory_events
-
   # Raise an error with a cause if a report isn't valid
   class ReportValidationError < StandardError; end
 
   include ReportParsing
 
-  def process(message)
+  def consume
     super
+  end
 
+  def consume_one
     dispatch
   rescue Redis::CannotConnectError
     handle_redis_error
@@ -35,7 +34,7 @@ class InventoryEventsConsumer < ApplicationConsumer
   def handle_report_parsing
     parse_output = parse_report
     validation_topic = Settings.kafka.topics.upload_compliance
-    produce(parse_output, topic: validation_topic) if validation_topic
+    produce(parse_output, topic: validation_topic) if validation_topic # TODO: producer change
   end
 
   def handle_host_delete
