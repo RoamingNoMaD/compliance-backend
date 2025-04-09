@@ -1,11 +1,32 @@
 # frozen_string_literal: true
 
 class KarafkaApp < Karafka::App
+  # librdkafka config creation
+  security_protocol = Settings.kafka.security_protocol.downcase
+
+  if security_protocol == 'sasl_ssl'
+    sasl_config = {
+      'sasl.username': Settings.kafka.sasl_username,
+      'sasl.password': Settings.kafka.sasl_password,
+      'sasl.mechanism': Settings.kafka.sasl_mechanism,
+      'security.protocol': Settings.kafka.security_protocol
+    }
+  else
+    sasl_config = {}
+  end
+
+  ca_location = Settings.kafka.ssl_ca_location if %w[ssl sasl_ssl].include?(security_protocol)
+
+  kafka_config = {
+    'bootstrap.servers': Settings.kafka.brokers,
+    'ssl.ca.location': ca_location
+  }.merge(sasl_config).compact
+
   setup do |config|
-    config.kafka = { 'bootstrap.servers': Settings.kafka.brokers }
+    config.kafka = kafka_config
     config.client_id = 'compliance_backend'
-    # Recreate consumers with each batch. This will allow Rails code reload to work in the
-    # development mode. Otherwise Karafka process would not be aware of code changes
+
+    # Allow Rails code reload to work in dev env.
     config.consumer_persistence = !Rails.env.development?
   end
 
