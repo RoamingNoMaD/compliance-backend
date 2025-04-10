@@ -94,7 +94,7 @@ class KarafkaApp < Karafka::App
       # across multiple environments
       #
       # config(partitions: 2, 'cleanup.policy': 'compact')
-      consumer InventoryEventsConsumer
+      consumer ComplianceConsumer
     end
 
   end
