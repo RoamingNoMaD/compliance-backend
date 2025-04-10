@@ -2,6 +2,13 @@
 
 # Receives messages from the Kafka topic, converts them into jobs for processing
 class ComplianceConsumer < ApplicationConsumer
+  include SystemRemoval
+
+  def consume_one
+    if type == 'delete'
+      delete_system
+    end
+  end
 
   private
 
