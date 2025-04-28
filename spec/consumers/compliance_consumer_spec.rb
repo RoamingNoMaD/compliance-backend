@@ -32,7 +32,7 @@ RSpec.describe ComplianceConsumer do
     end
 
     describe 'received compliance message' do
-      let(:service_class) { ReportParser }
+      let(:service_class) { Kafka::ReportParser }
       let(:type) { 'updated' }
       let(:message) do
         super().merge(

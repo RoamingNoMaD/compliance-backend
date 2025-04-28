@@ -35,7 +35,15 @@ class ApplicationProducer
     end
 
     def kafka
-      @kafka ||= WaterDrop::Producer.new if self::BROKERS.any?
+      return unless self::BROKERS.any?
+
+      @kafka ||= WaterDrop::Producer.new do |config|
+        config.deliver = true
+        config.kafka = {
+          'bootstrap.servers': self::BROKERS.first, # TODO: can we use .first ? or Settings.kafka.brokers
+          'request.required.acks': 1
+        }
+      end
     end
   end
 end

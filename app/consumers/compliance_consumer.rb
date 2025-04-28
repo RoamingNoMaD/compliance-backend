@@ -3,7 +3,9 @@
 # Receives messages from the Kafka topic, dispatches them to the appropriate service
 class ComplianceConsumer < ApplicationConsumer
   def consume_one
-    if message_type == 'created'
+    if service == 'compliance'
+      Kafka::ReportParser.new(@message, logger).parse_reports
+    elsif message_type == 'created'
       PolicySystemImporter.new(@message, logger).import_host
     elsif message_type == 'delete'
       HostRemover.new(@message, logger).remove_host
