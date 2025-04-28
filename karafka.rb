@@ -1,19 +1,20 @@
 # frozen_string_literal: true
 
+# Karafka configuration
 class KarafkaApp < Karafka::App
   # librdkafka config creation
   security_protocol = Settings.kafka.security_protocol.downcase
 
-  if security_protocol == 'sasl_ssl'
-    sasl_config = {
-      'sasl.username': Settings.kafka.sasl_username,
-      'sasl.password': Settings.kafka.sasl_password,
-      'sasl.mechanism': Settings.kafka.sasl_mechanism,
-      'security.protocol': Settings.kafka.security_protocol
-    }
-  else
-    sasl_config = {}
-  end
+  sasl_config = if security_protocol == 'sasl_ssl'
+                  {
+                    'sasl.username': Settings.kafka.sasl_username,
+                    'sasl.password': Settings.kafka.sasl_password,
+                    'sasl.mechanism': Settings.kafka.sasl_mechanism,
+                    'security.protocol': Settings.kafka.security_protocol
+                  }
+                else
+                  {}
+                end
 
   ca_location = Settings.kafka.ssl_ca_location if %w[ssl sasl_ssl].include?(security_protocol)
 
@@ -96,6 +97,5 @@ class KarafkaApp < Karafka::App
       # config(partitions: 2, 'cleanup.policy': 'compact')
       consumer ComplianceConsumer
     end
-
   end
 end
