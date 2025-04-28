@@ -7,10 +7,11 @@ class PolicySystemImporter
     @logger = logger
   end
 
+  # rubocop:disable Metrics/MethodLength
   def import_host
     PolicyHost.create!(
       policy_id: policy_id,
-      host_id: host_id,
+      host_id: host_id
     )
   rescue ActiveRecord::RecordInvalid => e
     @logger.audit_fail(
@@ -32,4 +33,5 @@ class PolicySystemImporter
   def policy_id
     @message.dig('host', 'facts', 'image_builder', 'compliance_policy_id')
   end
+  # rubocop:enable Metrics/MethodLength
 end

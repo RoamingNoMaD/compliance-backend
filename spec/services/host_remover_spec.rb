@@ -12,18 +12,20 @@ RSpec.describe 'HostRemover' do
   let(:type) { 'delete' }
   let(:user) { FactoryBot.create(:v2_user) }
   let(:org_id) { user.org_id }
-  let(:system) {
+  let(:system) do
     FactoryBot.create(
       :system,
-      account: user.account,
+      account: user.account
     )
-  }
-  let(:message) {{
-    'type' => type,
-    'id' => system.id,
-    'timestamp' => DateTime.now.iso8601(6),
-    'org_id' => org_id
-  }}
+  end
+  let(:message) do
+    {
+      'type' => type,
+      'id' => system.id,
+      'timestamp' => DateTime.now.iso8601(6),
+      'org_id' => org_id
+    }
+  end
 
   it 'enqueues system deletion' do
     expect(Karafka.logger).to receive(:audit_success).with(

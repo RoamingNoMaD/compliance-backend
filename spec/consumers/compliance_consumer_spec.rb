@@ -9,9 +9,11 @@ RSpec.describe ComplianceConsumer do
     karafka.produce(message.to_json)
   end
 
-  let(:message) {{
-    'type' => type,
-  }}
+  let(:message) do
+    {
+      'type' => type
+    }
+  end
 
   describe 'received unknown message' do
     let(:type) { 'somethingelse' }
@@ -32,13 +34,13 @@ RSpec.describe ComplianceConsumer do
     describe 'received compliance message' do
       let(:service_class) { ReportParser }
       let(:type) { 'updated' }
-      let(:message) {
+      let(:message) do
         super().merge(
           'platform_metadata' => {
             'service' => 'compliance'
           }
         )
-      }
+      end
 
       it 'calls the ReportParser service' do
         allow(@service).to receive(:parse_report)
@@ -136,7 +138,8 @@ RSpec.describe ComplianceConsumer do
   #       allow(XccdfReportParser).to receive(:new).and_raise(ActiveRecord::StatementInvalid)
   #     end
 
-  #     it 'fails gracefully and clears connections' do # TODO alternative: 'logs error, does not enqueue and clears connections'
+  # TODO: alternative: 'logs error, does not enqueue and clears connections'
+  #     it 'fails gracefully and clears connections' do
   #       expect(Karafka.logger).to receive(:error).with(
   #         "[#{org_id}] Database error, clearing active connection for further reconnect"
   #       )
