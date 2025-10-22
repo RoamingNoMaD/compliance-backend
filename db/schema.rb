@@ -10,13 +10,13 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2024_10_24_044139) do
+ActiveRecord::Schema[8.0].define(version: 2025_10_13_140201) do
   create_schema "inventory"
 
   # These are extensions that must be enabled in order to support this database
   enable_extension "dblink"
+  enable_extension "pg_catalog.plpgsql"
   enable_extension "pgcrypto"
-  enable_extension "plpgsql"
 
   create_table "accounts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
     t.datetime "created_at", precision: nil, null: false
@@ -41,6 +41,16 @@ ActiveRecord::Schema[8.0].define(version: 2024_10_24_044139) do
     t.datetime "created_at", precision: nil, null: false
     t.datetime "updated_at", precision: nil, null: false
     t.index ["title"], name: "index_business_objectives_on_title"
+  end
+
+  create_table "drifted_rules", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "profile_drift_id", null: false
+    t.uuid "rule_id", null: false
+    t.boolean "added"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["profile_drift_id"], name: "index_drifted_rules_on_profile_drift_id"
+    t.index ["rule_id"], name: "index_drifted_rules_on_rule_id"
   end
 
   create_table "fixes", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -93,6 +103,15 @@ ActiveRecord::Schema[8.0].define(version: 2024_10_24_044139) do
     t.index ["host_id"], name: "index_policy_hosts_on_host_id"
     t.index ["policy_id", "host_id"], name: "index_policy_hosts_on_policy_id_and_host_id", unique: true
     t.index ["policy_id"], name: "index_policy_hosts_on_policy_id"
+  end
+
+  create_table "profile_drifts", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
+    t.uuid "base_profile_id", null: false
+    t.uuid "target_profile_id", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["base_profile_id"], name: "index_profile_drifts_on_base_profile_id"
+    t.index ["target_profile_id"], name: "index_profile_drifts_on_target_profile_id"
   end
 
   create_table "profile_os_minor_versions", id: :uuid, default: -> { "gen_random_uuid()" }, force: :cascade do |t|
@@ -268,10 +287,14 @@ ActiveRecord::Schema[8.0].define(version: 2024_10_24_044139) do
     t.index ["ref_id", "benchmark_id"], name: "index_value_definitions_on_ref_id_and_benchmark_id", unique: true
   end
 
+  add_foreign_key "drifted_rules", "profile_drifts"
+  add_foreign_key "drifted_rules", "rules"
   add_foreign_key "policies", "accounts"
   add_foreign_key "policies", "business_objectives"
   add_foreign_key "policies", "profiles"
   add_foreign_key "policy_hosts", "policies"
+  add_foreign_key "profile_drifts", "profiles", column: "base_profile_id"
+  add_foreign_key "profile_drifts", "profiles", column: "target_profile_id"
   add_foreign_key "profiles", "policies"
   add_foreign_key "profiles", "profiles", column: "parent_profile_id"
   add_foreign_key "rule_groups", "benchmarks"
@@ -279,170 +302,6 @@ ActiveRecord::Schema[8.0].define(version: 2024_10_24_044139) do
   add_foreign_key "rule_references_containers", "rules"
   add_foreign_key "rules", "rule_groups"
   add_foreign_key "value_definitions", "benchmarks"
-
-  create_view "canonical_profiles", sql_definition: <<-SQL
-      SELECT profiles.id,
-      profiles.name AS title,
-      profiles.ref_id,
-      profiles.created_at,
-      profiles.updated_at,
-      profiles.description,
-      profiles.benchmark_id AS security_guide_id,
-      profiles.upstream,
-      profiles.value_overrides
-     FROM profiles
-    WHERE (profiles.parent_profile_id IS NULL);
-  SQL
-  create_view "v2_value_definitions", sql_definition: <<-SQL
-      SELECT value_definitions.id,
-      value_definitions.ref_id,
-      value_definitions.title,
-      value_definitions.description,
-      value_definitions.value_type,
-      value_definitions.default_value,
-      value_definitions.lower_bound,
-      value_definitions.upper_bound,
-      value_definitions.benchmark_id AS security_guide_id
-     FROM value_definitions;
-  SQL
-  create_view "tailorings", sql_definition: <<-SQL
-      SELECT profiles.id,
-      profiles.policy_id,
-      profiles.parent_profile_id AS profile_id,
-      profiles.value_overrides,
-      (NULLIF((profiles.os_minor_version)::text, ''::text))::integer AS os_minor_version,
-      profiles.created_at,
-      profiles.updated_at
-     FROM profiles
-    WHERE (profiles.parent_profile_id IS NOT NULL);
-  SQL
-  create_view "security_guides", sql_definition: <<-SQL
-      SELECT benchmarks.id,
-      benchmarks.ref_id,
-      (regexp_replace((benchmarks.ref_id)::text, '.+RHEL-(\\d+)$'::text, '\\1'::text))::integer AS os_major_version,
-      benchmarks.title,
-      benchmarks.description,
-      benchmarks.version,
-      benchmarks.created_at,
-      benchmarks.updated_at,
-      benchmarks.package_name
-     FROM benchmarks;
-  SQL
-  create_view "v2_rule_groups", sql_definition: <<-SQL
-      SELECT rule_groups.id,
-      rule_groups.ref_id,
-      rule_groups.title,
-      rule_groups.description,
-      rule_groups.rationale,
-      rule_groups.ancestry,
-      rule_groups.benchmark_id AS security_guide_id,
-      rule_groups.rule_id,
-      rule_groups.precedence
-     FROM rule_groups;
-  SQL
-  create_view "policy_systems", sql_definition: <<-SQL
-      SELECT policy_hosts.id,
-      policy_hosts.policy_id,
-      policy_hosts.host_id AS system_id
-     FROM policy_hosts;
-  SQL
-  create_view "v2_policies", sql_definition: <<-SQL
-      SELECT policies.id,
-      policies.name AS title,
-      policies.description,
-      policies.compliance_threshold,
-      business_objectives.title AS business_objective,
-      COALESCE(sq.total_system_count, (0)::bigint) AS total_system_count,
-      policies.profile_id,
-      policies.account_id
-     FROM ((policies
-       LEFT JOIN business_objectives ON ((business_objectives.id = policies.business_objective_id)))
-       LEFT JOIN ( SELECT count(policy_hosts.host_id) AS total_system_count,
-              policy_hosts.policy_id
-             FROM policy_hosts
-            GROUP BY policy_hosts.policy_id) sq ON ((sq.policy_id = policies.id)));
-  SQL
-  create_view "tailoring_rules", sql_definition: <<-SQL
-      SELECT profile_rules.id,
-      profile_rules.profile_id AS tailoring_id,
-      profile_rules.rule_id
-     FROM profile_rules;
-  SQL
-  create_view "v2_rules", sql_definition: <<-SQL
-      SELECT rules.id,
-      rules.ref_id,
-      rules.title,
-      rules.severity,
-      rules.description,
-      rules.rationale,
-      rules.created_at,
-      rules.updated_at,
-      rules.remediation_available,
-      rules.benchmark_id AS security_guide_id,
-      rules.upstream,
-      rules.precedence,
-      rules.rule_group_id,
-      rules.value_checks,
-      rules.identifier,
-      rule_references_containers.rule_references AS "references"
-     FROM (rules
-       LEFT JOIN rule_references_containers ON ((rule_references_containers.rule_id = rules.id)));
-  SQL
-  create_view "report_systems", sql_definition: <<-SQL
-      SELECT policy_hosts.id,
-      policy_hosts.policy_id AS report_id,
-      policy_hosts.host_id AS system_id
-     FROM policy_hosts;
-  SQL
-  create_view "supported_profiles", sql_definition: <<-SQL
-      SELECT (array_agg(canonical_profiles.id ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS id,
-      (array_agg(canonical_profiles.title ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS title,
-      (array_agg(canonical_profiles.description ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS description,
-      canonical_profiles.ref_id,
-      (array_agg(security_guides.id ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS security_guide_id,
-      (array_agg(security_guides.version ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS security_guide_version,
-      security_guides.os_major_version,
-      array_agg(DISTINCT profile_os_minor_versions.os_minor_version ORDER BY profile_os_minor_versions.os_minor_version DESC) AS os_minor_versions
-     FROM ((canonical_profiles
-       JOIN security_guides ON ((security_guides.id = canonical_profiles.security_guide_id)))
-       JOIN profile_os_minor_versions ON ((profile_os_minor_versions.profile_id = canonical_profiles.id)))
-    GROUP BY canonical_profiles.ref_id, security_guides.os_major_version;
-  SQL
-  create_view "historical_test_results", sql_definition: <<-SQL
-      SELECT test_results.id,
-      test_results.profile_id AS tailoring_id,
-      profiles.policy_id AS report_id,
-      test_results.host_id AS system_id,
-      test_results.start_time,
-      test_results.end_time,
-      test_results.score,
-      test_results.supported,
-      test_results.failed_rule_count,
-      test_results.created_at,
-      test_results.updated_at
-     FROM (test_results
-       JOIN profiles ON ((profiles.id = test_results.profile_id)));
-  SQL
-  create_view "v2_test_results", sql_definition: <<-SQL
-      SELECT test_results.id,
-      test_results.profile_id AS tailoring_id,
-      profiles.policy_id AS report_id,
-      test_results.host_id AS system_id,
-      test_results.start_time,
-      test_results.end_time,
-      test_results.score,
-      test_results.supported,
-      test_results.failed_rule_count,
-      test_results.created_at,
-      test_results.updated_at
-     FROM ((test_results
-       JOIN profiles ON ((profiles.id = test_results.profile_id)))
-       JOIN ( SELECT test_results_1.profile_id,
-              test_results_1.host_id,
-              max(test_results_1.end_time) AS end_time
-             FROM test_results test_results_1
-            GROUP BY test_results_1.profile_id, test_results_1.host_id) tr ON (((test_results.profile_id = tr.profile_id) AND (test_results.host_id = tr.host_id) AND (test_results.end_time = tr.end_time))));
-  SQL
   create_function :v2_policies_insert, sql_definition: <<-'SQL'
       CREATE OR REPLACE FUNCTION public.v2_policies_insert()
        RETURNS trigger
@@ -754,5 +613,169 @@ ActiveRecord::Schema[8.0].define(version: 2024_10_24_044139) do
   SQL
   create_trigger :v2_test_results_insert, sql_definition: <<-SQL
       CREATE TRIGGER v2_test_results_insert INSTEAD OF INSERT ON public.v2_test_results FOR EACH ROW EXECUTE FUNCTION v2_test_results_insert()
+  SQL
+
+  create_view "canonical_profiles", sql_definition: <<-SQL
+      SELECT id,
+      name AS title,
+      ref_id,
+      created_at,
+      updated_at,
+      description,
+      benchmark_id AS security_guide_id,
+      upstream,
+      value_overrides
+     FROM profiles
+    WHERE (parent_profile_id IS NULL);
+  SQL
+  create_view "v2_value_definitions", sql_definition: <<-SQL
+      SELECT id,
+      ref_id,
+      title,
+      description,
+      value_type,
+      default_value,
+      lower_bound,
+      upper_bound,
+      benchmark_id AS security_guide_id
+     FROM value_definitions;
+  SQL
+  create_view "tailorings", sql_definition: <<-SQL
+      SELECT id,
+      policy_id,
+      parent_profile_id AS profile_id,
+      value_overrides,
+      (NULLIF((os_minor_version)::text, ''::text))::integer AS os_minor_version,
+      created_at,
+      updated_at
+     FROM profiles
+    WHERE (parent_profile_id IS NOT NULL);
+  SQL
+  create_view "security_guides", sql_definition: <<-SQL
+      SELECT id,
+      ref_id,
+      (regexp_replace((ref_id)::text, '.+RHEL-(\\d+)$'::text, '\\1'::text))::integer AS os_major_version,
+      title,
+      description,
+      version,
+      created_at,
+      updated_at,
+      package_name
+     FROM benchmarks;
+  SQL
+  create_view "v2_rule_groups", sql_definition: <<-SQL
+      SELECT id,
+      ref_id,
+      title,
+      description,
+      rationale,
+      ancestry,
+      benchmark_id AS security_guide_id,
+      rule_id,
+      precedence
+     FROM rule_groups;
+  SQL
+  create_view "policy_systems", sql_definition: <<-SQL
+      SELECT id,
+      policy_id,
+      host_id AS system_id
+     FROM policy_hosts;
+  SQL
+  create_view "v2_policies", sql_definition: <<-SQL
+      SELECT policies.id,
+      policies.name AS title,
+      policies.description,
+      policies.compliance_threshold,
+      business_objectives.title AS business_objective,
+      COALESCE(sq.total_system_count, (0)::bigint) AS total_system_count,
+      policies.profile_id,
+      policies.account_id
+     FROM ((policies
+       LEFT JOIN business_objectives ON ((business_objectives.id = policies.business_objective_id)))
+       LEFT JOIN ( SELECT count(policy_hosts.host_id) AS total_system_count,
+              policy_hosts.policy_id
+             FROM policy_hosts
+            GROUP BY policy_hosts.policy_id) sq ON ((sq.policy_id = policies.id)));
+  SQL
+  create_view "tailoring_rules", sql_definition: <<-SQL
+      SELECT id,
+      profile_id AS tailoring_id,
+      rule_id
+     FROM profile_rules;
+  SQL
+  create_view "v2_rules", sql_definition: <<-SQL
+      SELECT rules.id,
+      rules.ref_id,
+      rules.title,
+      rules.severity,
+      rules.description,
+      rules.rationale,
+      rules.created_at,
+      rules.updated_at,
+      rules.remediation_available,
+      rules.benchmark_id AS security_guide_id,
+      rules.upstream,
+      rules.precedence,
+      rules.rule_group_id,
+      rules.value_checks,
+      rules.identifier,
+      rule_references_containers.rule_references AS "references"
+     FROM (rules
+       LEFT JOIN rule_references_containers ON ((rule_references_containers.rule_id = rules.id)));
+  SQL
+  create_view "report_systems", sql_definition: <<-SQL
+      SELECT id,
+      policy_id AS report_id,
+      host_id AS system_id
+     FROM policy_hosts;
+  SQL
+  create_view "supported_profiles", sql_definition: <<-SQL
+      SELECT (array_agg(canonical_profiles.id ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS id,
+      (array_agg(canonical_profiles.title ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS title,
+      (array_agg(canonical_profiles.description ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS description,
+      canonical_profiles.ref_id,
+      (array_agg(security_guides.id ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS security_guide_id,
+      (array_agg(security_guides.version ORDER BY (string_to_array((security_guides.version)::text, '.'::text))::integer[] DESC))[1] AS security_guide_version,
+      security_guides.os_major_version,
+      array_agg(DISTINCT profile_os_minor_versions.os_minor_version ORDER BY profile_os_minor_versions.os_minor_version DESC) AS os_minor_versions
+     FROM ((canonical_profiles
+       JOIN security_guides ON ((security_guides.id = canonical_profiles.security_guide_id)))
+       JOIN profile_os_minor_versions ON ((profile_os_minor_versions.profile_id = canonical_profiles.id)))
+    GROUP BY canonical_profiles.ref_id, security_guides.os_major_version;
+  SQL
+  create_view "historical_test_results", sql_definition: <<-SQL
+      SELECT test_results.id,
+      test_results.profile_id AS tailoring_id,
+      profiles.policy_id AS report_id,
+      test_results.host_id AS system_id,
+      test_results.start_time,
+      test_results.end_time,
+      test_results.score,
+      test_results.supported,
+      test_results.failed_rule_count,
+      test_results.created_at,
+      test_results.updated_at
+     FROM (test_results
+       JOIN profiles ON ((profiles.id = test_results.profile_id)));
+  SQL
+  create_view "v2_test_results", sql_definition: <<-SQL
+      SELECT test_results.id,
+      test_results.profile_id AS tailoring_id,
+      profiles.policy_id AS report_id,
+      test_results.host_id AS system_id,
+      test_results.start_time,
+      test_results.end_time,
+      test_results.score,
+      test_results.supported,
+      test_results.failed_rule_count,
+      test_results.created_at,
+      test_results.updated_at
+     FROM ((test_results
+       JOIN profiles ON ((profiles.id = test_results.profile_id)))
+       JOIN ( SELECT test_results_1.profile_id,
+              test_results_1.host_id,
+              max(test_results_1.end_time) AS end_time
+             FROM test_results test_results_1
+            GROUP BY test_results_1.profile_id, test_results_1.host_id) tr ON (((test_results.profile_id = tr.profile_id) AND (test_results.host_id = tr.host_id) AND (test_results.end_time = tr.end_time))));
   SQL
 end

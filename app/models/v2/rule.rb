@@ -40,6 +40,9 @@ module V2
     has_many :tailorings, through: :tailoring_rules, class_name: 'V2::Tailoring'
     has_many :policies, class_name: 'V2::Policy', through: :tailorings
     has_many :fixes, class_name: 'V2::Fix', dependent: :destroy
+    has_many :drifted_rules, class_name: 'V2::DriftedRule', dependent: :destroy
+    # has_many :profile_drifts, through: :drifted_rules, source: :profile_drift
+    # TODO: needed?
 
     sortable_by :title
     sortable_by :severity, sorted_severities

@@ -21,6 +21,7 @@ module V2
     has_many :rules, through: :profile_rules, class_name: 'V2::Rule'
     has_many :os_minor_versions, class_name: 'V2::ProfileOsMinorVersion', dependent: :destroy
     has_many :rule_groups, through: :security_guide, class_name: 'V2::RuleGroup'
+    has_many :profile_drifts, class_name: 'V2::ProfileDrift', dependent: :destroy
 
     def variant_for_minor(version)
       profile = find_variant_for_minor(version)
