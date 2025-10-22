@@ -12,12 +12,18 @@ module V2
 
       # This is the method where you probably want to put a breakpoint to debug SQL
       def fetch_collection
-        scope = filter_by_tags(search(expand_resource))
+        scope = filter_by_tags(search(fetch_complete_collection))
+
+        sort(scope).limit(pagination_limit).offset(pagination_offset)
+      end
+
+      def fetch_complete_collection
+        scope = expand_resource
         count = count_collection(scope)
         # If the count of records equals zero, make sure that the parents are not accessible
         validate_parents! if count.zero? && permitted_params[:parents]&.any?
 
-        sort(scope).limit(pagination_limit).offset(pagination_offset)
+        scope
       end
 
       def count_collection(scope)

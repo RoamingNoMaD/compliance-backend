@@ -28,6 +28,7 @@ Rails.application.routes.draw do
               get :tailoring_file, on: :member, defaults: { format: 'xml' }, constraints: { format: /json|xml|toml/ }
               get :rule_tree, on: :member, parents: %i[policy]
 
+              resources :migrations, only: %i[index], parents: %i[policy tailoring]
               resources :rules, only: %i[index create update destroy], parents: %i[policies tailorings]
             end
 

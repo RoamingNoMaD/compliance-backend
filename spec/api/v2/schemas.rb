@@ -46,6 +46,7 @@ module Api
         system: SYSTEM,
         tailoring: TAILORING,
         tailoring_create: TAILORING_CREATE,
+        tailoring_compare: TAILORING_COMPARE,
         tailoring_file_json: TAILORING_FILE_JSON,
         tailoring_file_toml: TAILORING_FILE_TOML,
         test_result: TEST_RESULT,

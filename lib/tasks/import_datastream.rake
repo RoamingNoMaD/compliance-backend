@@ -43,6 +43,9 @@ namespace :ssg do
       end
       # Clear the old cached values
       SupportedSsg.clear
+
+      # Compute drift between rulesets of Profiles
+
     end
     Revision.datastreams = SupportedSsg.revision
     Rails.logger.info "Datastreams synced to revision: #{Revision.datastreams}"
