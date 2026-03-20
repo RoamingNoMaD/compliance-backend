@@ -16,13 +16,13 @@ module V2
     kessel_permission_for_action :show, KesselRbac::REPORT_VIEW
 
     def os_versions
-      render json: test_results.os_versions, status: :ok
+      render json: authorize(fetch_metadata_collection).os_versions, status: :ok
     end
     permission_for_action :os_versions, Rbac::SYSTEM_READ
     permitted_params_for_action :os_versions, { filter: ParamType.string }
 
     def security_guide_versions
-      render json: test_results.security_guide_versions, status: :ok
+      render json: authorize(fetch_metadata_collection).security_guide_versions, status: :ok
     end
     permission_for_action :security_guide_versions, Rbac::REPORT_READ
     kessel_permission_for_action :security_guide_versions, KesselRbac::REPORT_VIEW

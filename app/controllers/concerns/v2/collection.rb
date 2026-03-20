@@ -20,6 +20,12 @@ module V2
         sort(scope).limit(pagination_limit).offset(pagination_offset)
       end
 
+      # Lightweight version of fetch_collection for metadata endpoints (e.g. os_versions)
+      # that bypass the serializer and only filter by tags and search.
+      def fetch_metadata_collection
+        filter_by_tags(search(expand_metadata_resource))
+      end
+
       def count_collection(scope)
         # Count the whole collection using a single column and not the whole table. This column
         # by default is the primary key of the table, however, in certain cases using a different

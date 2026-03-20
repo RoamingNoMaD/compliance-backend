@@ -16,6 +16,13 @@ module V2
       join_aggregated(join_associated(scope)).select(*select_fields)
     end
 
+    # Building the query that returns all the required data for metadata serialization
+    def expand_metadata_resource
+      # Join with parents and 1:1 associations, skipping aggregated joins and field
+      # selection as metadata endpoints handle their own SELECT and ordering.
+      join_associated(join_parents(pundit_scope, permitted_params[:parents]))
+    end
+
     # Reduce through all the associations of the `relation` and join+scope them or return the
     # `relation˙ untouched if it does not have any associations.
     def join_parents(relation, associations)
