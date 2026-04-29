@@ -132,11 +132,11 @@ describe V2::PoliciesController do
       context 'unset title' do
         let(:title) { nil }
 
-        it 'copies the title of the profile' do
+        it 'is not_acceptable' do
           post :create, params: params
 
-          expect(response).to have_http_status :created
-          expect(subject.title).to eq(subject.profile.title)
+          expect(response).to have_http_status :not_acceptable
+          expect(response.parsed_body['errors']).to include(match(/title can't be blank/))
         end
       end
 
