@@ -310,7 +310,8 @@ class HostTest < ActiveSupport::TestCase
         account: @account,
         external: true,
         parent_profile: @profile,
-        rules: @profile.rules
+        rules: @profile.rules,
+        os_minor_version: '1'
       )
 
       @profile.policy.update(hosts: [])

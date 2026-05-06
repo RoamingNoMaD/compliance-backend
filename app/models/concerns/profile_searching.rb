@@ -76,27 +76,19 @@ module ProfileSearching
     scope :in_policy, lambda { |policy_or_profile_id|
       return none unless ::UUID.validate(policy_or_profile_id)
 
-      policy_cond = { policy_id: policy_or_profile_id }
-      profile_cond = {
-        policy: {
-          profiles_policies: {
-            id: policy_or_profile_id
-          }
-        }
-      }
+      policy_ids = where(id: policy_or_profile_id).select(:policy_id)
 
-      search = left_outer_joins(policy: :profiles)
-      search.where(id: policy_or_profile_id)
-            .or(search.where(policy_cond))
-            .or(search.where(profile_cond))
-            .distinct
+      where(id: policy_or_profile_id)
+        .or(where(policy_id: policy_or_profile_id))
+        .or(where(policy_id: policy_ids))
+        .distinct
     }
   end
 
   # class methods for profile searching
   module ClassMethods
     def first_by_os_minor_version_preferred(os_minor_version)
-      where(os_minor_version: ['', os_minor_version])
+      where(os_minor_version: ['', '0', os_minor_version])
         .order(:os_minor_version)
         .last
     end
